@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Rentals</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        #table-container {
+            width: 80%;
+            margin: 20px auto;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #fff;
+            overflow: hidden;
+        }
+
+        .table-header, .table-row {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .table-header {
+            background-color: #eee;
+            font-weight: bold;
+        }
+
+        .table-cell {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            border-right: 1px solid #ddd;
+        }
+
+        .table-cell:last-child {
+            border-right: none;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .add-btn {
+            display: block;
+            margin: 20px auto;
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .save-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Car Rental Details</h1>
+
+    <h2 id="carTitle">Car Title: </h2>
+
+    <div id="table-container">
+        <div class="table-header">
+            <div class="table-cell">Member</div>
+            <div class="table-cell">Rental Date</div>
+            <div class="table-cell">Number of Rental Days</div>
+            <div class="table-cell">Actions</div>
+        </div>
+    </div>
+
+    <button id="add-row-btn" class="add-btn">Add Row</button>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const Cars = JSON.parse(localStorage.getItem('Cars')) || [];
+            const members = JSON.parse(localStorage.getItem('members')) || [];
+            const rentals = JSON.parse(localStorage.getItem('rentals')) || [];
+            const carId = getQueryParam('carId');
+            const car = Cars.find(car => car.carId === carId);
+            const rentalData = rentals.filter(rental => rental.carId === carId);
+
+            const tableContainer = document.querySelector('#table-container');
+            const carTitleElement = document.getElementById('carTitle');
+
+            // Display car title
+            if (car) {
+                carTitleElement.textContent = `Car Title: ${car.carName}`;
+            } else {
+                carTitleElement.textContent = 'Car Title: Not Found';
+            }
+
+            // Populate existing rental rows
+            rentalData.forEach(rental => {
+                let row = document.createElement("div");
+                row.classList.add('table-row');
+
+                row.innerHTML = `
+                    <div class="table-cell"><input type="text" value="${rental.memberName}" class="select-member" /></div>
+                    <div class="table-cell"><input type="date" class="rental-date" value="${rental.rentalDate}" /></div>
+                    <div class="table-cell"><input type="number" class="rental-days" value="${rental.numberOfDays}" /></div>
+                    <div class="table-cell">
+                        <button class="save-btn">Save</button>
+                        <button class="delete-btn">Delete</button>
+                        
+                    </div>
+                `;
+
+                tableContainer.appendChild(row);
+
+                // Add event listener to delete the row
+                row.querySelector('.delete-btn').addEventListener('click', () => {
+                    row.remove();
+                    deleteRow(rental.memberName, rental.rentalDate, rental.numberOfDays);
+                });
+
+                // Add event listener to save the row
+                row.querySelector('.save-btn').addEventListener('click', () => {
+                    const memberName = row.querySelector('.select-member').value;
+                    const rentalDate = row.querySelector('.rental-date').value;
+                    const numberOfDays = row.querySelector('.rental-days').value;
+
+                    if (memberName && rentalDate && numberOfDays) {
+                        updateRow(carId, memberName, rentalDate, numberOfDays);
+                    } else {
+                        alert('Please fill in all the details before saving.');
+                    }
+                });
+            });
+
+            // Add event listener for the 'Add Row' button
+            document.getElementById('add-row-btn').addEventListener('click', addNewRow);
+
+            function addNewRow() {
+                const newRow = document.createElement("div");
+                newRow.classList.add("table-row");
+
+                newRow.innerHTML = `
+                    <div class="table-cell">
+                        <select class="select-member"></select>
+                    </div>
+                    <div class="table-cell">
+                        <input type="date" class="rental-date" />
+                    </div>
+                    <div class="table-cell">
+                        <input type="number" class="rental-days" />
+                    </div>
+                    <div class="table-cell">
+                        <button class="save-btn">Save</button>
+                        <button class="delete-btn">Delete</button>
+                        
+                    </div>
+                `;
+
+                tableContainer.appendChild(newRow);
+
+                
+                let selectMember = newRow.querySelector('.select-member');
+                members.forEach(member => {
+                    selectMember.innerHTML += `<option value="${member.firstName}">${member.firstName}</option>`;
+                });
+
+                // Delete function
+                newRow.querySelector('.delete-btn').addEventListener("click", () => {
+                    let memberName = selectMember.value;
+                    let rentalDate = newRow.querySelector(".rental-date").value;
+                    let numberOfDays = newRow.querySelector(".rental-days").value;
+
+                    deleteRow(memberName, rentalDate, numberOfDays);
+                    newRow.remove();
+                });
+
+                // Save function
+                newRow.querySelector('.save-btn').addEventListener('click', () => {
+                    const memberName = selectMember.value;
+                    const rentalDate = newRow.querySelector('.rental-date').value;
+                    const numberOfDays = newRow.querySelector('.rental-days').value;
+
+                    if (memberName && rentalDate && numberOfDays) {
+                        updateRow(carId, memberName, rentalDate, numberOfDays);
+                    } else {
+                        alert('Please fill in all the details before saving.');
+                    }
+                });
+            }
+
+            // Function to delete row data
+            function deleteRow(memberName, rentalDate, numberOfDays) {
+                const index = rentals.findIndex(rental => rental.carId === carId && rental.memberName === memberName && rental.rentalDate === rentalDate && rental.numberOfDays === numberOfDays);
+                if (index !== -1) {
+                    rentals.splice(index, 1);
+                    localStorage.setItem("rentals", JSON.stringify(rentals));
+                }
+            }
+
+            
+            function updateRow(carId, memberName, rentalDate, numberOfDays) {
+                const existingIndex = rentals.findIndex(rental => rental.carId === carId && rental.memberName === memberName && rental.rentalDate === rentalDate);
+                if (existingIndex !== -1) {
+                    
+                    rentals[existingIndex] = { carId, memberName, rentalDate, numberOfDays };
+                } else {
+                    
+                    rentals.push({ carId, memberName, rentalDate, numberOfDays });
+                }
+                localStorage.setItem("rentals", JSON.stringify(rentals));
+                alert('Row saved successfully!');
+            }
+
+            
+            function getQueryParam(param) {
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get(param);
+            }
+        });
+    </script>
+</body>
+
+</html>
